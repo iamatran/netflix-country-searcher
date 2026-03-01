@@ -216,8 +216,8 @@
       <input type="text" id="api-key" name="api-key" placeholder="Your x-rapidapi-key" autocomplete="on" />
     </div>
     <div class="form-group">
-      <label for="query">Search</label>
-      <input type="text" id="query" name="query" placeholder="e.g. jujutsu kaisen" autocomplete="off" />
+      <label for="query">Search by Title or Netflix ID</label>
+      <input type="text" id="query" name="query" placeholder="e.g. jujutsu kaisen or 81726714" autocomplete="off" />
     </div>
     <button type="submit" id="search-btn">Search</button>
   </form>
@@ -400,6 +400,8 @@
                 return '<span class="country-item"><span class="country-name">' + escapeHtml(name) + '</span>' + subHtml + '</span>';
               }).join('');
               countriesHtml = '<p class="season-countries"><strong>Available in:</strong> <span class="country-list">' + countrySpans + '</span></p>';
+            } else {
+              countriesHtml = '<p class="season-countries">Not available in any country at this time.</p>';
             }
             return (
               '<div class="season">' +
@@ -448,7 +450,10 @@
         resultsEl.innerHTML = '';
         setLoading(true);
 
-        var url = 'https://unogsng.p.rapidapi.com/search?query=' + encodeURIComponent(query) + '&limit=10';
+        var isNumericId = /^\d+$/.test(query);
+        var url = isNumericId
+          ? 'https://unogsng.p.rapidapi.com/title?netflixid=' + encodeURIComponent(query) + '&limit=10'
+          : 'https://unogsng.p.rapidapi.com/search?query=' + encodeURIComponent(query) + '&limit=10';
         fetch(url, {
           method: 'GET',
           headers: {
@@ -465,6 +470,9 @@
             var items = data.results || data.items || (Array.isArray(data) ? data : []);
             if (typeof items === 'object' && !Array.isArray(items) && items.total) {
               items = items.results || items.items || [];
+            }
+            if (!Array.isArray(items) && items && (items.nfid || items.netflixid || items.netflix_id || items.title)) {
+              items = [items];
             }
             renderResults(items);
           })
@@ -487,7 +495,10 @@
           var subHtml = subtitleStr ? ' <span class="country-subtitles">(' + escapeHtml(subtitleStr) + ')</span>' : '';
           return '<span class="country-item"><span class="country-name">' + escapeHtml(countryName) + '</span>' + subHtml + '</span>';
         }).filter(Boolean);
-        episodesContentEl.innerHTML = '<p class="season-countries"><strong>Available in:</strong> <span class="country-list">' + items.join('') + '</span></p>';
+        var content = items.length > 0
+          ? '<p class="season-countries"><strong>Available in:</strong> <span class="country-list">' + items.join('') + '</span></p>'
+          : '<p class="season-countries">Not available in any country at this time.</p>';
+        episodesContentEl.innerHTML = content;
         episodesEl.hidden = false;
       }
 
