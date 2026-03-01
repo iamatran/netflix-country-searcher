@@ -240,7 +240,7 @@
       const episodesTitleEl = document.getElementById('episodes-title');
       const episodesContentEl = document.getElementById('episodes-content');
       let lastSearchItems = [];
-      let formDirty = false;
+      let lastSearchedQuery = null;
       let isLoading = false;
       let searchLoadingInterval = null;
 
@@ -256,8 +256,10 @@
 
       function updateSearchButtonState() {
         const hasApiKey = (apiKeyInput.value || '').trim().length > 0;
-        const hasSearch = (queryInput.value || '').trim().length > 0;
-        searchBtn.disabled = isLoading || !hasApiKey || (!hasSearch && !formDirty);
+        const searchQuery = (queryInput.value || '').trim();
+        const hasSearch = searchQuery.length > 0;
+        const queryUnchanged = lastSearchedQuery !== null && searchQuery === lastSearchedQuery;
+        searchBtn.disabled = isLoading || !hasApiKey || !hasSearch || queryUnchanged;
       }
 
       function setLoading(loading) {
@@ -430,7 +432,6 @@
       }
 
       form.addEventListener('input', function () {
-        formDirty = true;
         updateSearchButtonState();
       });
 
@@ -446,8 +447,12 @@
           showMessage('Please enter a search term.', 'error');
           return;
         }
+        lastSearchedQuery = query;
         hideMessage();
         resultsEl.innerHTML = '';
+        episodesContentEl.innerHTML = '';
+        episodesTitleEl.textContent = 'Seasons & Episodes';
+        episodesEl.hidden = true;
         setLoading(true);
 
         var isNumericId = /^\d+$/.test(query);
