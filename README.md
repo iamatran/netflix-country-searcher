@@ -1,5 +1,11 @@
-# This is the Netflix Country Searcher
+# Netflix Country Searcher
 
-This is a static website to query the unogs rapid api
+A static site that searches Netflix availability by country using the [uNoGS API](https://rapidapi.com/unogs/api/unogs) on RapidAPI.
 
-You must provide your own rapid api key to unogs api
+## Requirements
+
+- Your own **RapidAPI key** for the uNoGS API (sign up at [RapidAPI](https://rapidapi.com/) and subscribe to the uNoGS API).
+
+## Preview
+
+[View the live preview](https://htmlpreview.github.io/?https://github.com/iamatran/netflix-country-searcher/blob/main/rapidapi.html)
