@@ -1,0 +1,21 @@
+curl --request GET \
+	--url 'https://unogsng.p.rapidapi.com/search?query=jujitsu kaisen&type=series' \
+	--header 'x-rapidapi-host: unogsng.p.rapidapi.com' \
+	--header 'x-rapidapi-key: 68a71b9ac7msh8538a452a21b749p1d13a9jsnf3688a7d31dc'
+
+curl 'https://unogs.com/api/search?limit=20&offset=0&query=new%20last%2010%20days' \
+  -H 'accept: application/json' \
+  -H 'accept-language: en-US,en;q=0.9,ja;q=0.8' \
+  -H 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MjI0OTMzMSwianRpIjoiNTJmZjFmNmMtNzIzNC00ZWM2LTkxNTgtYjZjYmYwNzM1NmUyIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjE3NzIyNDkyNzYuMjQ4IiwibmJmIjoxNzcyMjQ5MzMxLCJleHAiOjE3NzIzMzU3MzF9.-9CUfMhaHTR2jZ4wCeXizj4eoa9uV-tYG2AOpD0RK38' \
+  -b 'authtoken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MjI0OTMzMSwianRpIjoiNTJmZjFmNmMtNzIzNC00ZWM2LTkxNTgtYjZjYmYwNzM1NmUyIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjE3NzIyNDkyNzYuMjQ4IiwibmJmIjoxNzcyMjQ5MzMxLCJleHAiOjE3NzIzMzU3MzF9.-9CUfMhaHTR2jZ4wCeXizj4eoa9uV-tYG2AOpD0RK38; eucookie=stupideulaw; countrylist=21,23,26,29,33,36,307,45,39,327,331,334,265,337,336,269,267,357,378,65,67,390,392,268,400,408,412,447,348,270,73,34,425,432,436,46,78' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://unogs.com/' \
+  -H 'referrer: http://unogs.com' \
+  -H 'sec-ch-ua: "Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "macOS"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36' \
+  -H 'x-requested-with: XMLHttpRequest'

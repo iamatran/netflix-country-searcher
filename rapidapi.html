@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Netflix Country Searcher</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: #141414;
+      color: #e5e5e5;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: #fff;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.35rem;
+      color: #b3b3b3;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #1f1f1f;
+      color: #e5e5e5;
+    }
+    input:focus {
+      outline: none;
+      border-color: #e50914;
+      box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.25);
+    }
+    button {
+      padding: 0.6rem 1.25rem;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #e50914;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    button:hover {
+      background: #f40612;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .message {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .message.error {
+      background: rgba(229, 9, 20, 0.15);
+      color: #ff6b6b;
+    }
+    .message.info {
+      background: rgba(255, 255, 255, 0.08);
+      color: #b3b3b3;
+    }
+    #results {
+      margin-top: 1.5rem;
+    }
+    .result-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      background: #1f1f1f;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .result-item img {
+      width: 80px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .result-item .no-poster {
+      width: 80px;
+      height: 120px;
+      background: #333;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #666;
+      flex-shrink: 0;
+    }
+    .result-info h3 {
+      margin: 0 0 0.35rem 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .result-info p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #b3b3b3;
+      line-height: 1.4;
+    }
+    .result-info .year {
+      color: #808080;
+    }
+    .result-info .actions {
+      margin-top: 0.5rem;
+    }
+    button.select-series {
+      background: #333;
+      font-size: 0.875rem;
+      padding: 0.4rem 0.75rem;
+      margin-top: 0.25rem;
+    }
+    button.select-series:hover {
+      background: #444;
+    }
+    #episodes {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #333;
+    }
+    #episodes h2 {
+      font-size: 1.15rem;
+      margin: 0 0 1rem 0;
+      color: #fff;
+    }
+    .season {
+      margin-bottom: 1.25rem;
+    }
+    .season-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e5e5e5;
+      margin: 0 0 0.5rem 0;
+    }
+    .episode-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .episode-list li {
+      padding: 0.35rem 0;
+      font-size: 0.9rem;
+      color: #b3b3b3;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .episode-list li:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Netflix Country Searcher</h1>
+  <form id="search-form">
+    <div class="form-group">
+      <label for="api-key">RapidAPI Key</label>
+      <input type="text" id="api-key" name="api-key" placeholder="Your x-rapidapi-key" autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label for="query">Search</label>
+      <input type="text" id="query" name="query" placeholder="e.g. jujutsu kaisen" autocomplete="off" />
+    </div>
+    <button type="submit" id="search-btn">Search</button>
+  </form>
+  <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+  <div id="results"></div>
+  <div id="episodes" hidden>
+    <h2 id="episodes-title">Seasons &amp; Episodes</h2>
+    <div id="episodes-content"></div>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById('search-form');
+      const apiKeyInput = document.getElementById('api-key');
+      const queryInput = document.getElementById('query');
+      const searchBtn = document.getElementById('search-btn');
+      const messageEl = document.getElementById('message');
+      const resultsEl = document.getElementById('results');
+      const episodesEl = document.getElementById('episodes');
+      const episodesTitleEl = document.getElementById('episodes-title');
+      const episodesContentEl = document.getElementById('episodes-content');
+      let lastSearchItems = [];
+
+      function showMessage(text, type) {
+        messageEl.textContent = text;
+        messageEl.className = 'message ' + (type || 'info');
+        messageEl.hidden = false;
+      }
+
+      function hideMessage() {
+        messageEl.hidden = true;
+      }
+
+      function setLoading(loading) {
+        searchBtn.disabled = loading;
+        searchBtn.textContent = loading ? 'Searching…' : 'Search';
+      }
+
+      function renderResults(items) {
+        lastSearchItems = items || [];
+        if (!items || items.length === 0) {
+          resultsEl.innerHTML = '<p class="message info">No results found.</p>';
+          episodesEl.hidden = true;
+          return;
+        }
+        resultsEl.innerHTML = items.map(function (item) {
+          const nfid = item.nfid || item.netflixid || '';
+          const title = decodeHtmlEntities(item.title || item.name || 'Untitled');
+          const year = decodeHtmlEntities(String(item.year || item.releaseyear || ''));
+          const img = item.img || item.image || item.poster || '';
+          const synopsis = decodeHtmlEntities(item.synopsis || item.synopsis_short || item.description || '');
+          const posterHtml = img
+            ? '<img src="' + escapeHtml(img) + '" alt="" loading="lazy" />'
+            : '<div class="no-poster">No poster</div>';
+          const selectBtn = nfid
+            ? '<button type="button" class="select-series" data-nfid="' + escapeHtml(String(nfid)) + '" data-title="' + escapeHtml(title) + '">Select this series</button>'
+            : '';
+          return (
+            '<div class="result-item">' +
+              posterHtml +
+              '<div class="result-info">' +
+                '<h3>' + escapeHtml(title) + '</h3>' +
+                (year ? '<p class="year">' + escapeHtml(year) + '</p>' : '') +
+                (synopsis ? '<p>' + escapeHtml(synopsis) + '</p>' : '') +
+                (selectBtn ? '<div class="actions">' + selectBtn + '</div>' : '') +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+      }
+
+      function renderEpisodes(seriesTitle, data) {
+        episodesTitleEl.textContent = seriesTitle ? 'Seasons & Episodes: ' + seriesTitle : 'Seasons & Episodes';
+        var raw = data.results || data.items || data.episodes || (Array.isArray(data) ? data : []);
+        if (!Array.isArray(raw)) raw = [];
+        var bySeason = {};
+        for (var i = 0; i < raw.length; i++) {
+          var item = raw[i];
+          if (item.episodes && Array.isArray(item.episodes)) {
+            var sn = item.season != null ? item.season : (item.season_number != null ? item.season_number : i + 1);
+            for (var j = 0; j < item.episodes.length; j++) {
+              var ep = item.episodes[j];
+              if (!bySeason[sn]) bySeason[sn] = [];
+              bySeason[sn].push(ep);
+            }
+          } else {
+            var sn = item.season != null ? item.season : (item.season_number != null ? item.season_number : 1);
+            if (!bySeason[sn]) bySeason[sn] = [];
+            bySeason[sn].push(item);
+          }
+        }
+        var seasons = Object.keys(bySeason).map(Number).sort(function (a, b) { return a - b; });
+        if (seasons.length === 0) {
+          episodesContentEl.innerHTML = '<p class="message info">No seasons or episodes found.</p>';
+        } else {
+          episodesContentEl.innerHTML = seasons.map(function (seasonNum) {
+            var eps = bySeason[seasonNum];
+            eps.sort(function (a, b) {
+              var an = a.episode != null ? a.episode : (a.episode_number != null ? a.episode_number : 0);
+              var bn = b.episode != null ? b.episode : (b.episode_number != null ? b.episode_number : 0);
+              return an - bn;
+            });
+            var items = eps.map(function (ep) {
+              var title = decodeHtmlEntities(ep.title || ep.name || 'Episode ' + (ep.episode != null ? ep.episode : ep.episode_number));
+              var num = ep.episode != null ? ep.episode : (ep.episode_number != null ? ep.episode_number : '');
+              var line = num ? num + '. ' + title : title;
+              return '<li>' + escapeHtml(line) + '</li>';
+            }).join('');
+            return (
+              '<div class="season">' +
+                '<h3 class="season-title">Season ' + seasonNum + '</h3>' +
+                '<ul class="episode-list">' + items + '</ul>' +
+              '</div>'
+            );
+          }).join('');
+        }
+        episodesEl.hidden = false;
+      }
+
+      function decodeHtmlEntities(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.innerHTML = str;
+        return div.textContent || '';
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var apiKey = (apiKeyInput.value || '').trim();
+        var query = (queryInput.value || '').trim();
+        if (!apiKey) {
+          showMessage('Please enter your RapidAPI key.', 'error');
+          return;
+        }
+        if (!query) {
+          showMessage('Please enter a search term.', 'error');
+          return;
+        }
+        hideMessage();
+        resultsEl.innerHTML = '';
+        setLoading(true);
+
+        var url = 'https://unogsng.p.rapidapi.com/search?query=' + encodeURIComponent(query) + '&type=series';
+        fetch(url, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-host': 'unogsng.p.rapidapi.com',
+            'x-rapidapi-key': apiKey
+          }
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Request failed: ' + res.status + ' ' + res.statusText);
+            return res.json();
+          })
+          .then(function (data) {
+            setLoading(false);
+            var items = data.results || data.items || (Array.isArray(data) ? data : []);
+            if (typeof items === 'object' && !Array.isArray(items) && items.total) {
+              items = items.results || items.items || [];
+            }
+            renderResults(items);
+          })
+          .catch(function (err) {
+            setLoading(false);
+            showMessage('Error: ' + (err.message || 'Could not load results. Check API key and CORS.'), 'error');
+            console.error(err);
+          });
+      });
+
+      resultsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('.select-series');
+        if (!btn) return;
+        var nfid = btn.getAttribute('data-nfid');
+        var seriesTitle = btn.getAttribute('data-title') || '';
+        var apiKey = (apiKeyInput.value || '').trim();
+        if (!apiKey) {
+          showMessage('Please enter your RapidAPI key.', 'error');
+          return;
+        }
+        if (!nfid) return;
+        hideMessage();
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        var url = 'https://unogsng.p.rapidapi.com/episodes?netflixid=' + encodeURIComponent(nfid);
+        fetch(url, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-host': 'unogsng.p.rapidapi.com',
+            'x-rapidapi-key': apiKey
+          }
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Request failed: ' + res.status + ' ' + res.statusText);
+            return res.json();
+          })
+          .then(function (data) {
+            btn.disabled = false;
+            btn.textContent = 'Select this series';
+            renderEpisodes(seriesTitle, data);
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Select this series';
+            showMessage('Error loading episodes: ' + (err.message || ''), 'error');
+            console.error(err);
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
