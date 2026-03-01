@@ -505,6 +505,9 @@
         }
         if (!nfid) return;
         hideMessage();
+        episodesContentEl.innerHTML = '';
+        episodesTitleEl.textContent = 'Seasons & Episodes';
+        episodesEl.hidden = true;
         btn.disabled = true;
         var dotCount = 0;
         var loadingInterval = setInterval(function () {
@@ -536,6 +539,7 @@
             var seasonToCountries = buildSeasonToCountries(countryList);
             renderEpisodes(seriesTitle, episodesData || {}, seasonToCountries);
           }
+          episodesEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         function onError(err) {
           clearInterval(loadingInterval);
