@@ -62,8 +62,13 @@
     button:hover {
       background: #f40612;
     }
+    #search-btn {
+      min-width: 8.5rem;
+    }
     button:disabled {
-      opacity: 0.6;
+      background: #555;
+      color: #999;
+      opacity: 0.9;
       cursor: not-allowed;
     }
     .message {
@@ -116,6 +121,12 @@
       font-size: 1rem;
       font-weight: 600;
     }
+    .result-info h3 .nfid {
+      font-size: 0.8em;
+      font-weight: 500;
+      color: #808080;
+      margin-left: 0.5rem;
+    }
     .result-info p {
       margin: 0;
       font-size: 0.85rem;
@@ -133,6 +144,7 @@
       font-size: 0.875rem;
       padding: 0.4rem 0.75rem;
       margin-top: 0.25rem;
+      min-width: 10.5rem;
     }
     button.select-series:hover {
       background: #444;
@@ -170,6 +182,30 @@
     .episode-list li:last-child {
       border-bottom: none;
     }
+    .season-countries {
+      font-size: 0.85rem;
+      color: #808080;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .season-countries strong {
+      color: #b3b3b3;
+    }
+    .country-list {
+      display: inline;
+    }
+    .country-list .country-item:not(:last-child)::after {
+      content: '; ';
+    }
+    .country-name {
+      color: #f5c518;
+      font-weight: 600;
+    }
+    .country-subtitles {
+      color: #808080;
+      font-weight: 400;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
@@ -177,7 +213,7 @@
   <form id="search-form">
     <div class="form-group">
       <label for="api-key">RapidAPI Key</label>
-      <input type="text" id="api-key" name="api-key" placeholder="Your x-rapidapi-key" autocomplete="off" />
+      <input type="text" id="api-key" name="api-key" placeholder="Your x-rapidapi-key" autocomplete="on" />
     </div>
     <div class="form-group">
       <label for="query">Search</label>
@@ -204,6 +240,9 @@
       const episodesTitleEl = document.getElementById('episodes-title');
       const episodesContentEl = document.getElementById('episodes-content');
       let lastSearchItems = [];
+      let formDirty = false;
+      let isLoading = false;
+      let searchLoadingInterval = null;
 
       function showMessage(text, type) {
         messageEl.textContent = text;
@@ -215,9 +254,29 @@
         messageEl.hidden = true;
       }
 
+      function updateSearchButtonState() {
+        const hasApiKey = (apiKeyInput.value || '').trim().length > 0;
+        const hasSearch = (queryInput.value || '').trim().length > 0;
+        searchBtn.disabled = isLoading || !hasApiKey || (!hasSearch && !formDirty);
+      }
+
       function setLoading(loading) {
-        searchBtn.disabled = loading;
-        searchBtn.textContent = loading ? 'Searching…' : 'Search';
+        if (searchLoadingInterval) {
+          clearInterval(searchLoadingInterval);
+          searchLoadingInterval = null;
+        }
+        isLoading = loading;
+        if (loading) {
+          var dotCount = 0;
+          searchBtn.textContent = 'Searching.';
+          searchLoadingInterval = setInterval(function () {
+            dotCount = (dotCount % 3) + 1;
+            searchBtn.textContent = 'Searching' + '.'.repeat(dotCount);
+          }, 400);
+        } else {
+          searchBtn.textContent = 'Search';
+        }
+        updateSearchButtonState();
       }
 
       function renderResults(items) {
@@ -228,7 +287,7 @@
           return;
         }
         resultsEl.innerHTML = items.map(function (item) {
-          const nfid = item.nfid || item.netflixid || '';
+          const nfid = item.nfid || item.netflixid || item.netflix_id || (item.id != null ? String(item.id) : '');
           const title = decodeHtmlEntities(item.title || item.name || 'Untitled');
           const year = decodeHtmlEntities(String(item.year || item.releaseyear || ''));
           const img = item.img || item.image || item.poster || '';
@@ -243,7 +302,7 @@
             '<div class="result-item">' +
               posterHtml +
               '<div class="result-info">' +
-                '<h3>' + escapeHtml(title) + '</h3>' +
+                '<h3>' + escapeHtml(title) + (nfid ? '<span class="nfid">(' + escapeHtml(String(nfid)) + ')</span>' : '') + '</h3>' +
                 (year ? '<p class="year">' + escapeHtml(year) + '</p>' : '') +
                 (synopsis ? '<p>' + escapeHtml(synopsis) + '</p>' : '') +
                 (selectBtn ? '<div class="actions">' + selectBtn + '</div>' : '') +
@@ -253,7 +312,36 @@
         }).join('');
       }
 
-      function renderEpisodes(seriesTitle, data) {
+      function parseSeasdetToSeasonNumbers(seasdet) {
+        if (!seasdet || typeof seasdet !== 'string') return [];
+        var seasons = [];
+        var match;
+        var re = /S(\d+)(?:\(\d+\))?/g;
+        while ((match = re.exec(seasdet)) !== null) {
+          seasons.push(parseInt(match[1], 10));
+        }
+        return seasons;
+      }
+
+      function buildSeasonToCountries(countriesData) {
+        var list = Array.isArray(countriesData) ? countriesData : [];
+        var bySeason = {};
+        for (var i = 0; i < list.length; i++) {
+          var c = list[i];
+          var countryName = (c.country || '').trim() || (c.cc || '');
+          if (!countryName) continue;
+          var subtitleStr = (c.subtitle || '').trim();
+          var seasons = parseSeasdetToSeasonNumbers(c.seasdet);
+          for (var j = 0; j < seasons.length; j++) {
+            var sn = seasons[j];
+            if (!bySeason[sn]) bySeason[sn] = [];
+            bySeason[sn].push({ country: countryName, subtitle: subtitleStr });
+          }
+        }
+        return bySeason;
+      }
+
+      function renderEpisodes(seriesTitle, data, seasonToCountries) {
         episodesTitleEl.textContent = seriesTitle ? 'Seasons & Episodes: ' + seriesTitle : 'Seasons & Episodes';
         var raw = data.results || data.items || data.episodes || (Array.isArray(data) ? data : []);
         if (!Array.isArray(raw)) raw = [];
@@ -274,25 +362,46 @@
           }
         }
         var seasons = Object.keys(bySeason).map(Number).sort(function (a, b) { return a - b; });
+        var countriesBySeason = seasonToCountries || {};
+        if (seasons.length === 0) {
+          var onlyCountrySeasons = Object.keys(countriesBySeason).map(Number).sort(function (a, b) { return a - b; });
+          if (onlyCountrySeasons.length > 0) {
+            seasons = onlyCountrySeasons;
+            bySeason = {};
+            onlyCountrySeasons.forEach(function (sn) { bySeason[sn] = []; });
+          }
+        }
         if (seasons.length === 0) {
           episodesContentEl.innerHTML = '<p class="message info">No seasons or episodes found.</p>';
         } else {
           episodesContentEl.innerHTML = seasons.map(function (seasonNum) {
-            var eps = bySeason[seasonNum];
+            var eps = bySeason[seasonNum] || [];
             eps.sort(function (a, b) {
-              var an = a.episode != null ? a.episode : (a.episode_number != null ? a.episode_number : 0);
-              var bn = b.episode != null ? b.episode : (b.episode_number != null ? b.episode_number : 0);
+              var an = a.epnum != null ? a.epnum : (a.episode != null ? a.episode : (a.episode_number != null ? a.episode_number : 0));
+              var bn = b.epnum != null ? b.epnum : (b.episode != null ? b.episode : (b.episode_number != null ? b.episode_number : 0));
               return an - bn;
             });
             var items = eps.map(function (ep) {
-              var title = decodeHtmlEntities(ep.title || ep.name || 'Episode ' + (ep.episode != null ? ep.episode : ep.episode_number));
-              var num = ep.episode != null ? ep.episode : (ep.episode_number != null ? ep.episode_number : '');
-              var line = num ? num + '. ' + title : title;
+              var num = ep.epnum != null ? ep.epnum : (ep.episode != null ? ep.episode : (ep.episode_number != null ? ep.episode_number : ''));
+              var title = decodeHtmlEntities(ep.title || ep.name || 'Episode ' + (num || ''));
+              var line = num !== '' && num != null ? num + '. ' + title : title;
               return '<li>' + escapeHtml(line) + '</li>';
             }).join('');
+            var countryList = countriesBySeason[seasonNum];
+            var countriesHtml = '';
+            if (countryList && countryList.length > 0) {
+              var countrySpans = countryList.map(function (item) {
+                var name = typeof item === 'string' ? item : (item.country || '');
+                var subtitle = typeof item === 'string' ? '' : (item.subtitle || '');
+                var subHtml = subtitle ? ' <span class="country-subtitles">(' + escapeHtml(subtitle) + ')</span>' : '';
+                return '<span class="country-item"><span class="country-name">' + escapeHtml(name) + '</span>' + subHtml + '</span>';
+              }).join('');
+              countriesHtml = '<p class="season-countries"><strong>Available in:</strong> <span class="country-list">' + countrySpans + '</span></p>';
+            }
             return (
               '<div class="season">' +
                 '<h3 class="season-title">Season ' + seasonNum + '</h3>' +
+                (countriesHtml || '') +
                 '<ul class="episode-list">' + items + '</ul>' +
               '</div>'
             );
@@ -314,6 +423,11 @@
         div.textContent = str;
         return div.innerHTML;
       }
+
+      form.addEventListener('input', function () {
+        formDirty = true;
+        updateSearchButtonState();
+      });
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -358,6 +472,8 @@
           });
       });
 
+      updateSearchButtonState();
+
       resultsEl.addEventListener('click', function (e) {
         var btn = e.target.closest('.select-series');
         if (!btn) return;
@@ -371,28 +487,44 @@
         if (!nfid) return;
         hideMessage();
         btn.disabled = true;
-        btn.textContent = 'Loading…';
-        var url = 'https://unogsng.p.rapidapi.com/episodes?netflixid=' + encodeURIComponent(nfid);
-        fetch(url, {
-          method: 'GET',
-          headers: {
-            'x-rapidapi-host': 'unogsng.p.rapidapi.com',
-            'x-rapidapi-key': apiKey
-          }
-        })
-          .then(function (res) {
-            if (!res.ok) throw new Error('Request failed: ' + res.status + ' ' + res.statusText);
-            return res.json();
-          })
-          .then(function (data) {
+        var dotCount = 0;
+        var loadingInterval = setInterval(function () {
+          dotCount = (dotCount % 3) + 1;
+          btn.textContent = 'Loading' + '.'.repeat(dotCount);
+        }, 400);
+        btn.textContent = 'Loading.';
+        var headers = {
+          'x-rapidapi-host': 'unogsng.p.rapidapi.com',
+          'x-rapidapi-key': apiKey
+        };
+        var episodesUrl = 'https://unogsng.p.rapidapi.com/episodes?netflixid=' + encodeURIComponent(nfid);
+        var countriesUrl = 'https://unogsng.p.rapidapi.com/titlecountries?netflixid=' + encodeURIComponent(nfid);
+        function fetchJson(url) {
+          return fetch(url, { method: 'GET', headers: headers })
+            .then(function (res) {
+              if (!res.ok) throw new Error('Request failed: ' + res.status + ' ' + res.statusText);
+              return res.json();
+            });
+        }
+        Promise.all([
+          fetchJson(episodesUrl),
+          fetchJson(countriesUrl)
+        ])
+          .then(function (results) {
+            clearInterval(loadingInterval);
+            var episodesData = results[0];
+            var countriesData = results[1];
+            var countryList = (countriesData && countriesData.results) ? countriesData.results : (Array.isArray(countriesData) ? countriesData : []);
+            var seasonToCountries = buildSeasonToCountries(countryList);
             btn.disabled = false;
             btn.textContent = 'Select this series';
-            renderEpisodes(seriesTitle, data);
+            renderEpisodes(seriesTitle, episodesData, seasonToCountries);
           })
           .catch(function (err) {
+            clearInterval(loadingInterval);
             btn.disabled = false;
             btn.textContent = 'Select this series';
-            showMessage('Error loading episodes: ' + (err.message || ''), 'error');
+            showMessage('Error loading data: ' + (err.message || ''), 'error');
             console.error(err);
           });
       });
