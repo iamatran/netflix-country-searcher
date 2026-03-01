@@ -295,8 +295,11 @@
           const posterHtml = img
             ? '<img src="' + escapeHtml(img) + '" alt="" loading="lazy" />'
             : '<div class="no-poster">No poster</div>';
+          const vtype = (item.vtype || '').toLowerCase();
+          const isMovie = vtype === 'movie';
+          const btnLabel = isMovie ? 'Select this movie' : 'Select this series';
           const selectBtn = nfid
-            ? '<button type="button" class="select-series" data-nfid="' + escapeHtml(String(nfid)) + '" data-title="' + escapeHtml(title) + '">Select this series</button>'
+            ? '<button type="button" class="select-series" data-nfid="' + escapeHtml(String(nfid)) + '" data-title="' + escapeHtml(title) + '" data-vtype="' + escapeHtml(vtype) + '">' + escapeHtml(btnLabel) + '</button>'
             : '';
           return (
             '<div class="result-item">' +
@@ -445,7 +448,7 @@
         resultsEl.innerHTML = '';
         setLoading(true);
 
-        var url = 'https://unogsng.p.rapidapi.com/search?query=' + encodeURIComponent(query) + '&type=series';
+        var url = 'https://unogsng.p.rapidapi.com/search?query=' + encodeURIComponent(query) + '&limit=10';
         fetch(url, {
           method: 'GET',
           headers: {
@@ -474,11 +477,27 @@
 
       updateSearchButtonState();
 
+      function renderMovieCountries(title, countryList) {
+        episodesTitleEl.textContent = title ? 'Movie Title: ' + title : 'Movie Title';
+        var list = Array.isArray(countryList) ? countryList : [];
+        var items = list.map(function (c) {
+          var countryName = (c.country || '').trim() || (c.cc || '');
+          if (!countryName) return '';
+          var subtitleStr = (c.subtitle || '').trim();
+          var subHtml = subtitleStr ? ' <span class="country-subtitles">(' + escapeHtml(subtitleStr) + ')</span>' : '';
+          return '<span class="country-item"><span class="country-name">' + escapeHtml(countryName) + '</span>' + subHtml + '</span>';
+        }).filter(Boolean);
+        episodesContentEl.innerHTML = '<p class="season-countries"><strong>Available in:</strong> <span class="country-list">' + items.join('') + '</span></p>';
+        episodesEl.hidden = false;
+      }
+
       resultsEl.addEventListener('click', function (e) {
         var btn = e.target.closest('.select-series');
         if (!btn) return;
         var nfid = btn.getAttribute('data-nfid');
         var seriesTitle = btn.getAttribute('data-title') || '';
+        var vtype = (btn.getAttribute('data-vtype') || '').toLowerCase();
+        var isMovie = vtype === 'movie';
         var apiKey = (apiKeyInput.value || '').trim();
         if (!apiKey) {
           showMessage('Please enter your RapidAPI key.', 'error');
@@ -497,8 +516,8 @@
           'x-rapidapi-host': 'unogsng.p.rapidapi.com',
           'x-rapidapi-key': apiKey
         };
-        var episodesUrl = 'https://unogsng.p.rapidapi.com/episodes?netflixid=' + encodeURIComponent(nfid);
         var countriesUrl = 'https://unogsng.p.rapidapi.com/titlecountries?netflixid=' + encodeURIComponent(nfid);
+        var btnLabel = isMovie ? 'Select this movie' : 'Select this series';
         function fetchJson(url) {
           return fetch(url, { method: 'GET', headers: headers })
             .then(function (res) {
@@ -506,27 +525,33 @@
               return res.json();
             });
         }
-        Promise.all([
-          fetchJson(episodesUrl),
-          fetchJson(countriesUrl)
-        ])
-          .then(function (results) {
-            clearInterval(loadingInterval);
-            var episodesData = results[0];
-            var countriesData = results[1];
-            var countryList = (countriesData && countriesData.results) ? countriesData.results : (Array.isArray(countriesData) ? countriesData : []);
+        function onLoaded(episodesData, countriesData) {
+          clearInterval(loadingInterval);
+          btn.disabled = false;
+          btn.textContent = btnLabel;
+          var countryList = (countriesData && countriesData.results) ? countriesData.results : (Array.isArray(countriesData) ? countriesData : []);
+          if (isMovie) {
+            renderMovieCountries(seriesTitle, countryList);
+          } else {
             var seasonToCountries = buildSeasonToCountries(countryList);
-            btn.disabled = false;
-            btn.textContent = 'Select this series';
-            renderEpisodes(seriesTitle, episodesData, seasonToCountries);
-          })
-          .catch(function (err) {
-            clearInterval(loadingInterval);
-            btn.disabled = false;
-            btn.textContent = 'Select this series';
-            showMessage('Error loading data: ' + (err.message || ''), 'error');
-            console.error(err);
-          });
+            renderEpisodes(seriesTitle, episodesData || {}, seasonToCountries);
+          }
+        }
+        function onError(err) {
+          clearInterval(loadingInterval);
+          btn.disabled = false;
+          btn.textContent = btnLabel;
+          showMessage('Error loading data: ' + (err.message || ''), 'error');
+          console.error(err);
+        }
+        if (isMovie) {
+          fetchJson(countriesUrl).then(function (countriesData) { onLoaded(null, countriesData); }).catch(onError);
+        } else {
+          var episodesUrl = 'https://unogsng.p.rapidapi.com/episodes?netflixid=' + encodeURIComponent(nfid);
+          Promise.all([fetchJson(episodesUrl), fetchJson(countriesUrl)])
+            .then(function (results) { onLoaded(results[0], results[1]); })
+            .catch(onError);
+        }
       });
     })();
   </script>
