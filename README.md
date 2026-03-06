@@ -8,4 +8,4 @@ A static site that searches Netflix availability by country using the [uNoGS API
 
 ## Preview
 
-[View the live preview](https://htmlpreview.github.io/?https://github.com/iamatran/netflix-country-searcher/blob/main/rapidapi.html)
+[View the live preview](https://htmlpreview.github.io/?https://github.com/iamatran/netflix-country-searcher-unogs/blob/main/index.html)
